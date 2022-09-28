@@ -1,0 +1,11 @@
+= thoughts
+
+Bash related thinkies, musings.
+
+
+== Asciidoc
+Articles are written in https://asciidoc.org/[asciidoc].
+Use https://asciidoctor.org/[asciidoctor] to compile them to HTML, PDF, or however you'd best enjoy them.
+
+
+== Articles

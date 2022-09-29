@@ -1,0 +1,406 @@
+= Bash isn't bad--you're bad _at_ it.
+:source-highlighter:     pygments
+:pygments-style:         algol_nu
+:pygments-linenums-mode: table
+:toc:                    preamble
+:toclevels:              3
+
+A provocative title, and intentionally so.
+
+Bash has a reputation for being unsafe, ill-suited to complex tasks, and oft badly written.
+These problems are not inherent to the language.
+They originate solely from the user.
+
+
+== The thesis
+> You can write a bad program in any language.
+
+The majority of the errors present in bash scripts are easily avoidable.
+Most importantly, they're avoidable without added time or complexity.
+After all, a shell script is supposed to be quick to compose, often solving one-off problems.
+
+It is my contention that good bash is equally easy to write.
+You just need to know how.
+
+
+== The problems
+=== No variable quoting
+_General rule:_
+Quote all variables all the time.
+
+[source,bash,linenums]
+----
+# Don't do this.
+path='/Application Support/something/else'
+mkdir $path
+
+# The above is equivalent to calling:
+mkdir '/Application'  'Support/something/else'
+
+# Do this.
+mkdir "$path"
+----
+
+Unquoted strings may also incidentally glob match files/directories.
+
+[source,bash,linenums]
+----
+# Don't do this.
+string="D*"
+echo $string
+
+# Expected result :  D*
+# Actual result   :  Desktop Downloads Documents
+
+# Do this.
+echo "$string"
+----
+
+
+=== No comments
+_General rule:_
+Comment your code, particular blocks that are dense and/or weird.
+
+Scripts must be:
+
+. Readable
+. Maintainable
+
+Most shell scripts do not undergo frequent development.
+They're written, and much later unearthed, probably by a different developer.
+Anything complex that "`made sense at the time`" won't later--I promise.
+
+Coming back to a script and discovering this...
+
+[source,bash,linenums]
+----
+ARRAY=("${ARRAY[@]::${#ARRAY[@]}-1}")
+----
+
+...is going to take you a second to unpack.
+I challenging you to tell me what this does off the top of your head.
+
+
+=== Legacy bash commands
+_General rule:_
+Use `[[ \... ]]` for tests, and `$( \... )` for capturing output.
+
+[source,bash,linenums]
+----
+# Don't use single brackets for tests.
+if [ -n var ]
+
+# Use double brackets. It allows for and regex and logical and/or in the test.
+if [[ $var1 =~ <regex_pattern>           ]] ; then ... fi
+if [[ $var1 == cond1  &&  $var2 == cond2 ]] ; then ... fi
+
+# This particularly can help with a lot of conditions that would be otherwise
+# tricky to format:
+if [[ $var1 == cond1 &&
+      $var2 == cond2 &&
+      $var3 == cond3 ]]
+then
+   ...
+fi
+
+
+# Don't use backticks to capture command output.
+output=`cmd`
+
+# Use $(...), it's nestable and has a significantly more clear start & stop
+# token.
+output=$(cmd)
+progdir=$( cd $(dirname "${BASH_SOURCE[@]}") ; pwd )
+----
+
+
+=== No native arithmetic
+_General rule:_
+If you're using numbers, arithmetic, or assignment from arithmetic, use double parens.
+
+As long as you stick to integers, there's no need for piping to `bc`, or trickery with `awk`.
+
+.Assignment
+[source,bash,linenums]
+----
+(( a=0, b=a+1 ))
+
+echo "a: ${a}, b: ${b}"
+# a: 0, b: 1
+----
+
+.Loops
+[source,bash,linenums]
+----
+# C-style loop.
+for (( idx=0; idx<10; ++idx )) ; do
+   echo "$idx"
+done
+
+# Double parens as a conditional.
+while ((idx < 10)) ; do
+   echo "$idx"
+   (( ++idx ))
+done
+----
+
+WARNING: Expressions in double parens that evaluate to `0` have a return status of `1`.
+         If you've included a `set -e` at the top of your script, `(( 0 ))` will cause a very confusing and silent exit.
+
+
+=== No defaults
+_General rule:_
+Use sparingly, but invaluable when it's the right tool for the job.
+
+Bash parameter expansion <<spe>> is expansive and tricky.
+Knowing the basics is invaluable.
+
+.Common parameter expansion
+[cols='1,3']
+|===
+| Variable | Definition
+
+| `${VAR:-value}`
+| If `$VAR` is empty, output `value` instead
+
+| `${VAR=value}`
+| If `$VAR` is empty, set the variable equal to `value`
+|===
+
+.Examples
+[source,bash,linenums]
+----
+# This is kinda tricky. The colon 'command' will evaluate its arguments, then
+# return with a 0-status. We can use that to set a variable, if not declared
+# from the environment.
+: ${VERBOSE=0}
+
+# If $VERBOSE is already set, the parameter above is ignored. Else it sets the
+# default to `0`.
+
+
+# In this case, we're replacing the value of $VERBOSE (if unset) with the string
+# `unset`.
+echo "Verbosity set to: ${VERBOSE:-unset}"
+----
+
+
+=== No arrays
+_General rule:_
+Use arrays to reduce repetition, and simplify refactoring.
+
+NOTE: Indexed arrays are present in Bash 3 (the default on macOS).
+      Associative arrays (dicts, hash maps, whatever you call them) require Bash 4+.
+
+[source,bash,linenums]
+----
+# Array items are separated by whitespace.
+# Quoting multiple words treats them as a singular item.
+
+array=(
+   one
+   "two and"
+   three
+)
+
+# Access items by index (0-indexed).
+first="${array[0]}"
+
+# Printing/iterating all items
+printf '[%s]' "${array[@]}"
+# [one][two and][three]
+----
+
+_General rule_:
+Always double-quote the array, always use `@` when iterating or printing.
+It maintains elements with whitespace as separate items.
+
+
+==== Use in functions
+Lists can be used to pass long lists of function arguments without the need to escape newlines.
+Escaping newlines is fragile, and should be avoided at all costs.
+
+.Don't do this
+[source,bash,linenums]
+----
+cmd --arg1 --arg2 --yet-another-arg \
+    --this-flag-is-really-long \
+    --this-takes-a-path ./path/to/a/file/thats/long \
+    --verbose
+----
+
+.Do this
+[source,bash,linenums]
+----
+params=(
+   --arg1
+   --arg2
+   --yet-another-arg
+   --this-flag-is-really-long
+   --this-takes-a-path ./path/to/a/file/thats/long
+   --verbose
+)
+
+cmd "${params[@]}"
+
+
+# The same thing can be applied when creating a number of directories, or any
+# similar command.
+dirs=(
+   /path/to/dir1
+   /path/to/dir2
+   /path/to/dir3
+   /path/to/dir4
+)
+
+mkdir -p "${dirs[@]}"
+----
+
+
+=== No namerefs
+_General rule:_
+You can replace 95% of `eval` statements with a nameref.
+
+[source,bash,linenums]
+----
+declare -- foo='this'
+declare -n bar='foo'    # bar points to variable `foo`
+
+echo "$foo"             # 'this'
+echo "$bar"             # 'this'
+
+declare -- bar='that'
+echo "$foo"             # 'that'
+echo "$bar"             # 'that'
+----
+
+Changing `bar` becomes equivalent to changing `foo` itself.
+But why would we need to use such a thing?
+
+.The situation
+We need to make an API call and pass a secret depending on our environment (dev, preprod, prod).
+The script takes a parameter for the environment we're in, and should load the corresponding secret.
+
+.Environment
+[source,bash,linenums]
+----
+DEV_SECRET='xxx'
+PREPROD_SECRET='yyy'
+PROD_SECRET='zzz'
+----
+
+.Script
+[source,bash,bash]
+----
+# Pass in variable if we're in dev/prod/preprod.
+env="$1"
+
+# Create nameref to the environment variable, calling .upper(env) so it matches
+# the case of the variable.
+declare -n secret="${env^^}_SECRET"
+
+# Test if the variable is defined.
+if [[ -z $secret ]] ; then
+   echo "No secret exists for environment: $env" 1>&2
+   exit 1
+fi
+
+# $secret now references either $DEV_SECRET, $PRE_PROD, or $PROD_SECRET,
+# depending on user input.
+api --token "$secret"
+----
+
+
+=== No tests
+_General rule:_
+Always use `shellcheck` <<shck>>.
+If the cost of failure or debugging is greater than cost to write, use `bats` <<bats>>.
+
+==== ShellCheck
+ShellCheck is a static analysis tool for shell scripts.
+It runs extremely quickly, and identifies common errors.
+You have literally no reason not to use it on every script.
+
+../script.sh
+[source,bash,linenums]
+----
+#!/bin/bash
+
+function foo {
+   local bar=$1
+   return 1
+}
+
+if ! foo ; then
+   echo "Foo failed I guess." 1>&2
+fi
+----
+
+.Example output
+[source]
+----
+$ shellcheck script.sh
+
+In script.sh line 3:
+function foo {
+^-- SC2120 (warning): foo references arguments, but none are ever passed.
+
+
+In script.sh line 4:
+   local bar=$1
+         ^-^ SC2034 (warning): bar appears unused. Verify use (or export if used externally).
+
+
+In script.sh line 8:
+if ! foo ; then
+     ^-^ SC2119 (info): Use foo "$@" if function's $1 should mean script's $1.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2034 -- bar appears unused. Verify use (o...
+  https://www.shellcheck.net/wiki/SC2120 -- foo references arguments, but non...
+  https://www.shellcheck.net/wiki/SC2119 -- Use foo "$@" if function's $1 sho...
+----
+
+
+==== BATS
+BATS is a unit testing framework for Bash.
+Setup is quick.
+Test are written in native bash.
+Here is a brief example.
+
+../calc.sh
+[source,bash,linenums]
+----
+function add {
+   echo "$(( $1 + $2 ))"
+}
+----
+
+../test.bats
+[source,bash,linenums]
+----
+@test "1 + 1 = 2" {
+   source "${BATS_TEST_DIRNAME}/calc.sh"
+   run add 1 1
+
+   # Exit status saved in $status variable.
+   [[ $status -eq 0 ]]
+
+   # stdout is saved in $output. Should be equal to the sum of the two args.
+   [[ $output -eq 2 ]]
+}
+----
+
+.Run tests!
+[source,bash]
+----
+$ bats test.bats
+----
+
+
+[bibliography]
+== References
+
+* [[[spe,  0]]] https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html[Shell Parameter Expansion]
+* [[[bats, 1]]] https://bats-core.readthedocs.io/en/stable/[bats-core]
+* [[[shck, 2]]] https://www.shellcheck.net/[ShellCheck]

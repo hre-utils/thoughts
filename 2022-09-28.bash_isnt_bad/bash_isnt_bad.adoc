@@ -153,6 +153,7 @@ _General rule:_
 Use sparingly, but invaluable when it's the right tool for the job.
 
 Bash parameter expansion <<spe>> is expansive and tricky.
+When overdone, it can add a lot of complexity in your scripts.
 Knowing the basics is invaluable.
 
 .Common parameter expansion
@@ -164,19 +165,16 @@ Knowing the basics is invaluable.
 | If `$VAR` is empty, output `value` instead
 
 | `${VAR=value}`
-| If `$VAR` is empty, set the variable equal to `value`
+| If `$VAR` is empty, set the variable `VAR` to the string `value`
 |===
 
 .Examples
 [source,bash,linenums]
 ----
 # This is kinda tricky. The colon 'command' will evaluate its arguments, then
-# return with a 0-status. We can use that to set a variable, if not declared
-# from the environment.
+# return with a 0-status. We can use that to set a variable if not already
+# declared.
 : ${VERBOSE=0}
-
-# If $VERBOSE is already set, the parameter above is ignored. Else it sets the
-# default to `0`.
 
 
 # In this case, we're replacing the value of $VERBOSE (if unset) with the string
@@ -217,7 +215,7 @@ It maintains elements with whitespace as separate items.
 
 
 ==== Use in functions
-Lists can be used to pass long lists of function arguments without the need to escape newlines.
+Arrays can be used to pass function arguments without needing to escape newlines.
 Escaping newlines is fragile, and should be avoided at all costs.
 
 .Don't do this
@@ -314,7 +312,7 @@ api --token "$secret"
 === No tests
 _General rule:_
 Always use `shellcheck` <<shck>>.
-If the cost of failure or debugging is greater than cost to write, use `bats` <<bats>>.
+If you value your time, and don't like troubleshooting, use `bats` <<bats>>.
 
 ==== ShellCheck
 ShellCheck is a static analysis tool for shell scripts.

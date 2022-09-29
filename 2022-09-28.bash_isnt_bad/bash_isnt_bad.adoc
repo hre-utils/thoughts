@@ -145,7 +145,7 @@ done
 ----
 
 WARNING: Expressions in double parens that evaluate to `0` have a return status of `1`.
-         If you've included a `set -e` at the top of your script, `(( 0 ))` will cause a very confusing and silent exit.
+         If you've included a `set -e` at the top of your script, `\(( 0 ))` will cause a very confusing and silent exit.
 
 
 === No defaults

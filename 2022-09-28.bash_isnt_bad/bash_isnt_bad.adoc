@@ -399,5 +399,5 @@ $ bats test.bats
 == References
 
 * [[[spe,  0]]] https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html[Shell Parameter Expansion]
-* [[[bats, 1]]] https://bats-core.readthedocs.io/en/stable/[bats-core]
-* [[[shck, 2]]] https://www.shellcheck.net/[ShellCheck]
+* [[[shck, 1]]] https://www.shellcheck.net/[ShellCheck]
+* [[[bats, 2]]] https://bats-core.readthedocs.io/en/stable/[bats-core]

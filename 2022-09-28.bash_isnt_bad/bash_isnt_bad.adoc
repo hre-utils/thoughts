@@ -15,19 +15,24 @@ They originate solely from the user.
 == The thesis
 > You can write a bad program in any language.
 
-The majority of the errors present in bash scripts are easily avoidable.
-Most importantly, they're avoidable without added time or complexity.
-After all, a shell script is supposed to be quick to compose, often solving one-off problems.
+Why then do people seem to write bad bash more often?
+
+The majority of errors present in bash scripts are easily avoidable.
+Most importantly, they're avoidable without added effort or complexity.
 
 It is my contention that good bash is equally easy to write.
 You just need to know how.
 
 
 == The problems
-=== No variable quoting
-_General rule:_
+=== Lack of quoted variables
+.What
+Unquoted variables may either glob match unintended files/directories, or expand to multiple '`words`'.
+
+.General rule
 Quote all variables all the time.
 
+.Examples
 [source,bash,linenums]
 ----
 # Don't do this.
@@ -39,12 +44,8 @@ mkdir '/Application'  'Support/something/else'
 
 # Do this.
 mkdir "$path"
-----
 
-Unquoted strings may also incidentally glob match files/directories.
 
-[source,bash,linenums]
-----
 # Don't do this.
 string="D*"
 echo $string
@@ -57,34 +58,47 @@ echo "$string"
 ----
 
 
-=== No comments
-_General rule:_
-Comment your code, particular blocks that are dense and/or weird.
+=== Lack of comments
+.What
+Comments are more necessary in bash, due to...
 
-Scripts must be:
+_Higher level of possible complexity._ +
+Bash's syntax may occasionally border on "`executable line noise`", particularly with a heavy use of pipelines.
+One must not only be familiar with bash itself, but also common command line tools like `awk`, `sed`, `cut`, `tr`, etc..
 
-. Readable
-. Maintainable
+_Less time spent in the code._ +
+It is less likely for someone to be immersed in the same bash file for an extended period of time.
+It's written, and much later unearthed, probably by a different developer.
+Anything complex that "`made sense at the time`" won't later.
 
-Most shell scripts do not undergo frequent development.
-They're written, and much later unearthed, probably by a different developer.
-Anything complex that "`made sense at the time`" won't later--I promise.
+Tell me what this does off the top of your head:
 
-Coming back to a script and discovering this...
-
-[source,bash,linenums]
+[source]
 ----
 ARRAY=("${ARRAY[@]::${#ARRAY[@]}-1}")
 ----
 
-...is going to take you a second to unpack.
-I challenging you to tell me what this does off the top of your head.
+.General rule
+Comment your code, particular blocks that are dense and/or weird.
+
+.Example
+[source,bash,linenums]
+----
+# This is equivalent to `array.pop()`. Bash slices take an initial index, and a
+# *length*. To yield an array missing the final element, we want a slice from
+# the 0th element -> len(array)-1.
+ARRAY=("${ARRAY[@]::${#ARRAY[@]}-1}")
+----
 
 
-=== Legacy bash commands
-_General rule:_
+=== Using legacy tests & command substitution
+.What
+Single brackets for test, `[\...]`, and backticks to capture command output, `{backtick}\...{backtick}`, have been deprecated.
+
+.General rule
 Use `[[ \... ]]` for tests, and `$( \... )` for capturing output.
 
+.Examples
 [source,bash,linenums]
 ----
 # Don't use single brackets for tests.
@@ -114,24 +128,25 @@ progdir=$( cd $(dirname "${BASH_SOURCE[@]}") ; pwd )
 ----
 
 
-=== No native arithmetic
-_General rule:_
-If you're using numbers, arithmetic, or assignment from arithmetic, use double parens.
+=== Lack of native arithmetic
+.What
+Bash can natively perform arithmetic.
+It simplifies loops and variable assignment.
 
-As long as you stick to integers, there's no need for piping to `bc`, or trickery with `awk`.
+.General rule
+If you don't need floats, there's no reason to pipe to `bc`, or `awk` trickery.
+Use double parens for arithmetic expressions.
 
-.Assignment
+.Examples
 [source,bash,linenums]
 ----
+# Assignment.
 (( a=0, b=a+1 ))
 
 echo "a: ${a}, b: ${b}"
 # a: 0, b: 1
-----
 
-.Loops
-[source,bash,linenums]
-----
+
 # C-style loop.
 for (( idx=0; idx<10; ++idx )) ; do
    echo "$idx"
@@ -148,15 +163,15 @@ WARNING: Expressions in double parens that evaluate to `0` have a return status 
          If you've included a `set -e` at the top of your script, `\(( 0 ))` will cause a very confusing and silent exit.
 
 
-=== No defaults
-_General rule:_
-Use sparingly, but invaluable when it's the right tool for the job.
+=== Lack of parameter expansion
+.What
+Often one needs to pass in configuration variables from the environment.
+Handling default values can tricky, and add complexity.
 
-Bash parameter expansion <<spe>> is expansive and tricky.
-When overdone, it can add a lot of complexity in your scripts.
-Knowing the basics is invaluable.
+.General rule
+Setting variable defaults through parameter expansion <<spe>> can help make code more clear.
 
-.Common parameter expansion
+.Simple parameter expansion
 [cols='1,3']
 |===
 | Variable | Definition
@@ -183,53 +198,30 @@ echo "Verbosity set to: ${VERBOSE:-unset}"
 ----
 
 
-=== No arrays
-_General rule:_
+=== Lack of using arrays
+.What
+Bash has arrays.
+Oftentimes programmers that would reach for an array in any other language won't in bash.
+
+.General rule
 Use arrays to reduce repetition, and simplify refactoring.
 
 NOTE: Indexed arrays are present in Bash 3 (the default on macOS).
       Associative arrays (dicts, hash maps, whatever you call them) require Bash 4+.
 
+.Example
 [source,bash,linenums]
 ----
-# Array items are separated by whitespace.
-# Quoting multiple words treats them as a singular item.
-
-array=(
-   one
-   "two and"
-   three
-)
-
-# Access items by index (0-indexed).
-first="${array[0]}"
-
-# Printing/iterating all items
-printf '[%s]' "${array[@]}"
-# [one][two and][three]
-----
-
-_General rule_:
-Always double-quote the array, always use `@` when iterating or printing.
-It maintains elements with whitespace as separate items.
-
-
-==== Use in functions
-Arrays can be used to pass function arguments without needing to escape newlines.
-Escaping newlines is fragile, and should be avoided at all costs.
-
-.Don't do this
-[source,bash,linenums]
-----
+# Arrays can be used to pass function arguments without needing to escape newlines.
+# Escaping newlines is fragile, and should be avoided at all costs.
+#
+# Don't do this.
 cmd --arg1 --arg2 --yet-another-arg \
     --this-flag-is-really-long \
     --this-takes-a-path ./path/to/a/file/thats/long \
     --verbose
-----
 
-.Do this
-[source,bash,linenums]
-----
+# Do this.
 params=(
    --arg1
    --arg2
@@ -238,12 +230,10 @@ params=(
    --this-takes-a-path ./path/to/a/file/thats/long
    --verbose
 )
-
 cmd "${params[@]}"
 
 
-# The same thing can be applied when creating a number of directories, or any
-# similar command.
+# Or when creating a bunch of directories:
 dirs=(
    /path/to/dir1
    /path/to/dir2
@@ -255,10 +245,15 @@ mkdir -p "${dirs[@]}"
 ----
 
 
-=== No namerefs
-_General rule:_
+=== Silly uses of eval
+.What
+Sometimes `eval` is the right tool for the job.
+More often than not there are safer alternatives available.
+
+.General rule
 You can replace 95% of `eval` statements with a nameref.
 
+.Example
 [source,bash,linenums]
 ----
 declare -- foo='this'
@@ -310,7 +305,11 @@ api --token "$secret"
 
 
 === No tests
-_General rule:_
+.What
+Bash scripts should be tested too.
+There are edge cases that are easy to miss, with potentially disasterous consequences.
+
+.General rule
 Always use `shellcheck` <<shck>>.
 If you value your time, and don't like troubleshooting, use `bats` <<bats>>.
 

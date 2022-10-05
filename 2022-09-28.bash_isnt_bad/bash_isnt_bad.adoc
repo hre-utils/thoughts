@@ -8,8 +8,8 @@
 A provocative title, and intentionally so.
 
 Bash has a reputation for being unsafe, ill-suited to complex tasks, and oft badly written.
-These problems are not inherent to the language.
-They originate solely from the user.
+These problems are not all inherent to the language.
+Most are caused by the user.
 
 
 == The thesis
@@ -79,14 +79,12 @@ ARRAY=("${ARRAY[@]::${#ARRAY[@]}-1}")
 ----
 
 .General rule
-Comment your code, particular blocks that are dense and/or weird.
+Comment your code, particularly blocks that are dense and/or weird.
 
 .Example
 [source,bash,linenums]
 ----
-# This is equivalent to `array.pop()`. Bash slices take an initial index, and a
-# *length*. To yield an array missing the final element, we want a slice from
-# the 0th element -> len(array)-1.
+# This is equivalent to `array.pop()`. An array slice from 0 -> length-1.
 ARRAY=("${ARRAY[@]::${#ARRAY[@]}-1}")
 ----
 
@@ -177,7 +175,7 @@ Setting variable defaults through parameter expansion <<spe>> can help make code
 | Variable | Definition
 
 | `${VAR:-value}`
-| If `$VAR` is empty, output `value` instead
+| If `$VAR` is empty, expand to `value` instead
 
 | `${VAR=value}`
 | If `$VAR` is empty, set the variable `VAR` to the string `value`
@@ -186,15 +184,12 @@ Setting variable defaults through parameter expansion <<spe>> can help make code
 .Examples
 [source,bash,linenums]
 ----
-# This is kinda tricky. The colon 'command' will evaluate its arguments, then
-# return with a 0-status. We can use that to set a variable if not already
-# declared.
+# Replace the value of $VERBOSE (if unset) with the string `not set`.
+echo "Verbosity set to: ${VERBOSE:-not set}"
+
+# The colon command will evaluate its arguments then return with a 0-status.
+# This *sets* a variable if not already defined.
 : ${VERBOSE=0}
-
-
-# In this case, we're replacing the value of $VERBOSE (if unset) with the string
-# `unset`.
-echo "Verbosity set to: ${VERBOSE:-unset}"
 ----
 
 

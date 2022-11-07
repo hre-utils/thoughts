@@ -111,8 +111,7 @@ Good bye!
 
 
 === Substitutions
-Possible via https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html[parameter expansion]
-using https://www.gnu.org/software/bash/manual/html_node/Pattern-Matching.html[pattern matching].
+Possible via parameter expansion <<spe>> using pattern matching <<pm>>.
 
 [source,bash]
 ----
@@ -146,6 +145,7 @@ To re-use the previous example, let's say we want to make all comments very shou
 Here's some text. # Good bye!
 ----
 
+.regex.bash
 [source,bash]
 ----
 #!/bin/bash
@@ -196,3 +196,10 @@ Will other people be reading it?
 Does a decrease in legibility increase the chance of bugs?
 
 Does the increase in speed come at too great a cost?
+
+
+[bibliography]
+== References
+
+* [[[spe, 0]]] https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html[Shell Parameter Expansion]
+* [[[pm,  1]]] https://www.gnu.org/software/bash/manual/html_node/Pattern-Matching.html[Pattern Matching]

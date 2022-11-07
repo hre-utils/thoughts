@@ -1,0 +1,201 @@
+= Use Native Bash (pt. 1, regex)
+:source-highlighter:     pygments
+:pygments-style:         algol_nu
+:pygments-linenums-mode: table
+:toc:                    preamble
+:toclevels:              3
+
+<DRAFT>
+
+Too often people call `sed`, `awk`, (or similar) instead of using native bash.
+It's slower.
+It requires external dependencies.
+Learn to use only bash.
+
+
+== But why
+=== It's common
+Bash is the universal language.
+
+Don't rely on the host system's version of `awk`.
+Don't write specialty code to account for some command's BSD differences.
+Write bash.
+
+=== It's fast
+Subprocesses and pipes are expensive.
+
+Not terribly so.
+But enough of them can push you past the "`comfortable`" amount of time waiting for a script to complete.
+A 100ms delay is noticeable.
+200ms is an eternity.
+
+End users don't deserve a worse experience because you'd rather stick with what's familiar.
+
+=== Learn something
+Figuring out novel ways to approach standard problems can be fun.
+
+There is much to be learned exploring niche areas of bash.
+Push it past the limits you thought were there.
+You'll be surprised how much further you can go.
+
+
+== Regex
+The common solution to regular expressions in Bash scripts looks like the following:
+
+[source,bash]
+----
+new_text=$( echo "$text" | sed 's/pattern/g' )
+----
+
+This requires
+
+. An unnecessary subshell
+. Unnecessarily calling `echo` to pipe something to...
+. An unnecessary external command
+
+
+=== Syntax
+Bash regex is performed within double-brackets: `[[ \... ]]`.
+This does not work using the `test` command, nor with single brackets.
+
+[source,bash]
+----
+if [[ $expr =~ $pattern ]] ; then
+   #...
+fi
+----
+
+
+=== An example
+Print the non-commented text from a file.
+
+.input.txt
+----
+# This is a comment--remove me!
+Here's some regular text.
+Don't remove me!
+
+Good bye.  # Remove me too!
+----
+
+.regex.bash
+[source,bash]
+----
+#!/bin/bash
+
+while IFS=$'\n' read -r line ; do
+   # Skip comment.
+   [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+   # Skip lines only containing whitespace.
+   [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+
+   # Remove in-line comments. Capture groups are available via the
+   # ${BASH_REMATCH[@]} array. Index `0' represents the entire match, with each
+   # successive index representing each respective capture group.
+   # I.e.,
+   #> ${BASH_REMATCH[1]} :: capture group 1
+   #> ${BASH_REMATCH[2]} :: capture group 2
+   #> etc.
+   if [[ "$line" =~ (.*)[[:space:]]+#.*$ ]] ; then
+      line="${BASH_REMATCH[1]}"
+   fi
+
+   echo "$line"
+done < tmp.txt
+----
+
+.output
+----
+Here's some regular text.
+Don't remove me!
+Good bye!
+----
+
+
+=== Substitutions
+Possible via https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html[parameter expansion]
+using https://www.gnu.org/software/bash/manual/html_node/Pattern-Matching.html[pattern matching].
+
+[source,bash]
+----
+# Replace the first instance of $pattern with $text.
+${var/pattern/text}
+
+# Replace *every* instance.
+${var//pattern/text}
+
+
+# Example:
+var='Hello!'
+
+echo "${var/Hello/Good bye}"
+# Good bye!
+
+echo "${var//l/e}"
+# Heeeo!
+----
+
+
+=== Combined approach
+Combining parameter expansion substitutions with test regex gives us a serviceable replacement for `sed`.
+To re-use the previous example, let's say we want to make all comments very shouty.
+
+.input.txt
+----
+# I'm not very shouty.
+# Beep boop.
+
+Here's some text. # Good bye!
+----
+
+[source,bash]
+----
+#!/bin/bash
+
+while IFS=$'\n' read -r line ; do
+   if [[ "$line" =~ (.*)#(.*) ]] ; then
+      match="${BASH_REMATCH[2]}"          # Get 2nd capture group (the comment).
+      replace="${match^^}"                # Parameter substitution to make caps.
+      line="${line/$match/$replace}"      # Parameter substitution to replace.
+   fi
+
+   echo "$line"
+done < input.txt
+----
+
+.output
+----
+# I'M NOT VERY SHOUTY.
+# BEEP BOOP.
+
+Here's some text.  # GOOD BYE!
+----
+
+
+== Caveats
+=== It's not always faster
+There inevitably comes a time when purpose-built commands are quicker than hacky bash solutions.
+
+AWK is a remarkable text processing language.
+I've written a good number of short `awk` scripts, and am consistently blown away with their speed and simplicity.
+
+"`Keep it in bash`" is good advice for speed, as forks and pipes have a decent startup cost.
+But it's important to realize when you're making things worse.
+
+Profile your code with both solutions.
+See how it fares.
+
+
+=== Legibility suffers
+One-off calls to `comm` (for example) are more legible than an intricate bash solution.
+Anyone who's familiar with *Nix CLI tools will understand them quickly.
+Man pages are available as reference.
+Hand-written bash solutions may lack the quality of documentation, or the legibility, that other commands offer.
+
+Consider the purpose of your code.
+Are you distributing it?
+Will other people be reading it?
+Does a decrease in legibility increase the chance of bugs?
+
+Does the increase in speed come at too great a cost?

@@ -8,9 +8,6 @@
 <DRAFT>
 
 Too often people call `sed`, `awk`, (or similar) instead of using native bash.
-It's slower.
-It requires external dependencies.
-Learn to use only bash.
 
 
 == But why

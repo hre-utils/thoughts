@@ -5,17 +5,18 @@
 :toc:                    preamble
 :toclevels:              3
 
-<DRAFT>
+Too often in scripts people call external tools such as `sed` or `awk`.
 
-Too often people call `sed`, `awk`, (or similar) instead of using native bash.
+Don't do that.
+Use bash.
 
 
 == But why
 === It's common
 Bash is the universal language.
 
-Don't rely on the host system's version of `awk`.
-Don't write specialty code to account for some command's BSD differences.
+Don't rely on the host system's version of `sed`.
+Don't write code to handle `awk` vs. `gawk`, or `grep` vs. `egrep`.
 Write bash.
 
 === It's fast
@@ -37,19 +38,20 @@ You'll be surprised how much further you can go.
 
 
 == Regex
-The common solution to regular expressions in Bash scripts looks like the following:
+The common solution to regular expressions in bash scripts looks like the following:
 
 [source,bash]
 ----
 new_text=$( echo "$text" | sed 's/pattern/g' )
 ----
 
-This requires
+This is bad. It requires:
 
 . An unnecessary subshell
 . Unnecessarily calling `echo` to pipe something to...
 . An unnecessary external command
 
+Let's learn how to do it better.
 
 === Syntax
 Bash regex is performed within double-brackets: `[[ \... ]]`.
@@ -81,11 +83,15 @@ Good bye.  # Remove me too!
 #!/bin/bash
 
 while IFS=$'\n' read -r line ; do
-   # Skip comment.
-   [[ "$line" =~ ^[[:space:]]*# ]] && continue
+   # Skip comments.
+   if [[ "$line" =~ ^[[:space:]]*# ]] ; then
+      continue
+   fi
 
-   # Skip lines only containing whitespace.
-   [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+   # Skip whitespace.
+   if [[ "$line" =~ ^[[:space:]]*$ ]] ; then
+      continue
+   fi
 
    # Remove in-line comments. Capture groups are available via the
    # ${BASH_REMATCH[@]} array. Index `0' represents the entire match, with each
@@ -132,9 +138,11 @@ echo "${var//l/e}"
 # Heeeo!
 ----
 
+You'll note that we cannot use regex within the above parameter expansion.
+For that we need...
 
 === Combined approach
-Combining parameter expansion substitutions with test regex gives us a serviceable replacement for `sed`.
+Combining parameter expansion's substitutions with regex in tests gives a serviceable replacement for basic uses of `sed`.
 To re-use the previous example, let's say we want to make all comments very shouty.
 
 .input.txt
@@ -152,9 +160,9 @@ Here's some text. # Good bye!
 
 while IFS=$'\n' read -r line ; do
    if [[ "$line" =~ (.*)#(.*) ]] ; then
-      match="${BASH_REMATCH[2]}"          # Get 2nd capture group (the comment).
-      replace="${match^^}"                # Parameter substitution to make caps.
-      line="${line/$match/$replace}"      # Parameter substitution to replace.
+      match="${BASH_REMATCH[2]}"         # Get 2nd capture group (the comment).
+      replace="${match^^}"               # Parameter substitution to capitalize.
+      line="${line/$match/$replace}"     # Parameter substitution to replace.
    fi
 
    echo "$line"

@@ -11,4 +11,4 @@ Use https://asciidoctor.org/[asciidoctor] to compile them to HTML, PDF, or howev
 == Articles
 
 . link:2022-09-28.bash_isnt_bad/bash_isnt_bad.adoc[2022-09-28, Bash isn't bad]
-. link:2022-10-06.use_native_bash_pt_01/use_native_bash_pt_01.adoc[2022-10-06, Use native bash (pt. 1)]
+. link:2022-11-06.use_native_bash_pt_01/use_native_bash_pt_01.adoc[2022-10-06, Use native bash (pt. 1)]
